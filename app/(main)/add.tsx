@@ -1,30 +1,33 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Keyboard, StyleSheet, Modal } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Keyboard, StyleSheet, Modal, Pressable } from 'react-native';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { EDA_MAN_APP_ID, EDA_MAN_APP_KEY } from '@env';
 import { getDatabase } from '../../db';
-
+import useSelectedFoods from "./selectedFoodContext";
 
 const AddMealScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [foodResults, setFoodResults] = useState<any[]>([]);
-  const [selectedFoods, setSelectedFoods] = useState<any[]>([]);
   const [selectedFoodsCollapsed, setSelectedFoodsCollapsed] = useState(true);
+  const { addFood, removeFood, updateQuantity, selectedFoods } = useSelectedFoods();
   const router = useRouter();
+  const params = useGlobalSearchParams();
 
   // États pour le Modal de demande du nom du repas
   const [showNameModal, setShowNameModal] = useState(false);
   const [mealName, setMealName] = useState('');
 
+  useEffect(() => {
+    console.log(selectedFoods);
+  }, [selectedFoods]);
+
   const searchFood = async () => {
     Keyboard.dismiss();
-    const app_id = EDA_MAN_APP_ID;
-    const app_key = EDA_MAN_APP_KEY;
     try {
       const response = await fetch(
         `https://api.edamam.com/api/food-database/v2/parser?ingr=${encodeURIComponent(
           searchQuery
-        )}&app_id=${app_id}&app_key=${app_key}`
+        )}&app_id=${EDA_MAN_APP_ID}&app_key=${EDA_MAN_APP_KEY}`
       );
       const data = await response.json();
       setFoodResults(data.hints || []);
@@ -33,37 +36,39 @@ const AddMealScreen = () => {
     }
   };
 
-  const handleFoodSelect = (food: any) => {
-    const existing = selectedFoods.find(item => item.food.foodId === food.food.foodId);
-    if (existing) {
-      setSelectedFoods(
-        selectedFoods.map(item =>
-          item.food.foodId === food.food.foodId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      setSelectedFoods([...selectedFoods, { ...food, quantity: 1 }]);
-    }
-  };
+  // const handleFoodSelect = (food: any) => {
+  //   console.log(food.food.foodId);
+  //   const existing = selectedFoods.find(item => item.food.foodId === food.food.foodId);
+  //   if (existing) {
+  //     setSelectedFoods(
+  //       selectedFoods.map(item =>
+  //         item.food.foodId === food.food.foodId
+  //           ? { ...item, quantity: item.quantity + 1 }
+  //           : item
+  //       )
+  //     );
+  //   } else {
+  //     console.log(food);
+  //     setSelectedFoods([...selectedFoods, { ...food, quantity: 1 }]);
+  //   }
+  // };
 
-  const handleRemoveFood = (id: string) => {
-    setSelectedFoods(selectedFoods.filter(item => item.food.foodId !== id));
-  };
+  // const handleRemoveFood = (id: string) => {
+  //   setSelectedFoods(selectedFoods.filter(item => item.food.foodId !== id));
+  // };
 
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    setSelectedFoods(
-      selectedFoods.map(item =>
-        item.food.foodId === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
-  };
+  // const handleQuantityChange = (id: string, newQuantity: number) => {
+  //   if (newQuantity < 1) return;
+  //   setSelectedFoods(
+  //     selectedFoods.map(item =>
+  //       item.food.foodId === id ? { ...item, quantity: newQuantity } : item
+  //     )
+  //   );
+  // };
 
   const insertMeal = async (mealName: string) => {
     const totalCalories = selectedFoods.reduce(
-      (total, food) => total + (food.food.nutrients?.ENERC_KCAL || 0) * food.quantity,
+      (total: any, food: any) => total + (food.nutrients?.ENERC_KCAL || 0) * food.quantity,
       0
     );
 
@@ -77,10 +82,10 @@ const AddMealScreen = () => {
       const db = await getDatabase();
       await db.runAsync(
         'INSERT INTO meals (name, totalCalories, foods) VALUES (?, ?, ?);',
-        [meal.name, meal.totalCalories, JSON.stringify(meal.foods)],
+        [meal.name, meal.totalCalories, JSON.stringify(meal.foods)]
       );
     } catch (error) {
-      console.error('Erreur lors de l’obtention de la DB', error);
+      console.error('Erreur lors de l’insertion du repas dans la DB', error);
     }
   };
 
@@ -119,7 +124,7 @@ const AddMealScreen = () => {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.resultItem}
-            onPress={() => handleFoodSelect(item)}
+            onPress={() => addFood(item.food)}
           >
             <Text style={styles.resultText}>
               {item.food.label} - {item.food.nutrients.ENERC_KCAL.toFixed(2)} Kcal
@@ -149,29 +154,29 @@ const AddMealScreen = () => {
           {!selectedFoodsCollapsed && (
             <FlatList
               data={selectedFoods}
-              keyExtractor={(item) => item.food.foodId}
+              keyExtractor={(item) => item.foodId}
               renderItem={({ item }) => (
                 <View style={styles.selectedItem}>
                   <Text style={styles.selectedText}>
-                    {item.food.label} - Quantité: {item.quantity}
+                    {item.label} - Quantité: {item.quantity}
                   </Text>
                   <View style={styles.selectedActions}>
                     <TouchableOpacity
                       onPress={() =>
-                        handleQuantityChange(item.food.foodId, item.quantity + 1)
+                        updateQuantity(item.foodId, item.quantity + 1)
                       }
                     >
                       <Text style={styles.actionText}>+</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() =>
-                        handleQuantityChange(item.food.foodId, item.quantity - 1)
+                        updateQuantity(item.foodId, item.quantity - 1)
                       }
                     >
                       <Text style={styles.actionText}>-</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => handleRemoveFood(item.food.foodId)}
+                      onPress={() => removeFood(item.foodId)}
                     >
                       <Text style={[styles.actionText, { color: 'red' }]}>
                         Supprimer
@@ -184,12 +189,14 @@ const AddMealScreen = () => {
           )}
         </View>
       )}
-
+      <Pressable style={styles.button} onPress={() => { router.replace("/camera") }}>
+        <Text style={styles.buttonText}>Ouvrir la caméra</Text>
+      </Pressable>
       <TouchableOpacity style={[styles.button, styles.validateButton]} onPress={handleValidate}>
         <Text style={styles.buttonText}>Valider</Text>
       </TouchableOpacity>
-    {/* Modal pour demander le nom du repas */}
-    <Modal visible={showNameModal} transparent animationType="slide">
+      {/* Modal pour demander le nom du repas */}
+      <Modal visible={showNameModal} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nom du repas</Text>
@@ -305,7 +312,7 @@ const styles = StyleSheet.create({
   selectedActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    margin: 3
+    margin: 3,
   },
   actionText: {
     fontSize: 16,

@@ -1,162 +1,96 @@
-import React, { useState, useRef } from "react";
-import { StyleSheet, View, Text, Button, Pressable } from "react-native";
-import {
-  CameraMode,
-  CameraType,
-  CameraView,
-  useCameraPermissions,
-} from "expo-camera";
-import { Image } from "expo-image";
-import { AntDesign } from "@expo/vector-icons";
-import { Feather } from "@expo/vector-icons";
-import { FontAwesome6 } from "@expo/vector-icons";
-import { useVideoPlayer, VideoView } from "expo-video";
-import * as FileSystem from "expo-file-system";
-import { useRouter } from "expo-router";
-
-const MEDIA_DIR = FileSystem.documentDirectory + "media";
+import React, { useState, useRef, useEffect, useContext } from "react";
+import { StyleSheet, View, Text, Button, Pressable, Modal, Alert } from "react-native";
+import { Camera, CameraView, useCameraPermissions } from "expo-camera";
+import { EDA_MAN_APP_ID, EDA_MAN_APP_KEY } from '@env';
+import { router, useGlobalSearchParams } from "expo-router";
+import useSelectedFoods from "./selectedFoodContext";
 
 export default function CameraScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView>(null);
-  const [capturedMedia, setCapturedMedia] = useState<{ uri: string; type: CameraMode } | null>(null);
-  const [mode, setMode] = useState<CameraMode>("picture");
-  const [facing, setFacing] = useState<CameraType>("back");
-  const [recording, setRecording] = useState(false);
-  const router = useRouter();
+  const [hasPermission, setHasPermission] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [foodData, setFoodData] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const { addFood } = useSelectedFoods();
 
-  if (!permission) return null;
+  useEffect(() => {
+    (async () => {
+        const { status } = await Camera.requestCameraPermissionsAsync();
+        setHasPermission(status === "granted");
+    })();
+  }, []);
 
-  if (!permission.granted) {
-    return (
-      <View style={styles.permissionContainer}>
-        <Text style={styles.permissionText}>
-          Nous avons besoin de votre permission pour utiliser la caméra
-        </Text>
-        <Button onPress={requestPermission} title="Autoriser" />
-      </View>
-    );
+  if (hasPermission === false) {
+    return <Text>Pas d'autorisation pour la caméra</Text>;
   }
 
-  const takePicture = async () => {
-    const photo = await cameraRef.current?.takePictureAsync();
-    if (photo?.uri) {
-      setCapturedMedia({ uri: photo.uri, type: "picture" });
-    }
-  };
-
-  const recordVideo = async () => {
-    if (recording) {
-      setRecording(false);
-      cameraRef.current?.stopRecording();
-      return;
-    }
-    setRecording(true);
-    const video = await cameraRef.current?.recordAsync();
-    if (video?.uri) {
-      setCapturedMedia({ uri: video.uri, type: "video" });
-    }
-    setRecording(false);
-  };
-
-  const toggleMode = () => {
-    setMode((prev) => (prev === "picture" ? "video" : "picture"));
-  };
-
-  const toggleFacing = () => {
-    setFacing((prev) => (prev === "back" ? "front" : "back"));
-  };
-
-  const handleSave = async () => {
-    if (capturedMedia) {
-      const dirInfo = await FileSystem.getInfoAsync(MEDIA_DIR);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(MEDIA_DIR, { intermediates: true });
-      }
-      const extension = capturedMedia.type === "picture" ? ".jpg" : ".mp4";
-      const newName = `media_${Date.now()}${extension}`;
-      await FileSystem.copyAsync({
-        from: capturedMedia.uri,
-        to: MEDIA_DIR + "/" + newName,
-      });
-      setCapturedMedia(null);
-      router.push("/");
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    setScanned(true);
+    try {
+      const response = await fetch(
+        `https://api.edamam.com/api/food-database/v2/parser?upc=${encodeURIComponent(
+          data
+        )}&app_id=${EDA_MAN_APP_ID}&app_key=${EDA_MAN_APP_KEY}`
+      );
+      const foodData = await response.json();
+      setFoodData(foodData.hints[0]);
+      setModalVisible(true);
+    } catch (error) {
+      console.error("Erreur API Edamam :", error);
+      Alert.alert("Erreur", "Impossible de récupérer les informations de l'aliment.");
+      setScanned(false);
     }
   };
 
   const handleCancel = () => {
-    setCapturedMedia(null);
+    setModalVisible(false);
+    setScanned(false);
   };
 
-  const renderPreview = () => {
-    return (
-      <View style={styles.previewContainer}>
-        {capturedMedia?.type === "picture" ? (
-          <Image
-            source={{ uri: capturedMedia.uri }}
-            contentFit="contain"
-            style={styles.previewMedia}
-          />
-        ) : (
-            <VideoView style={{ width: "100%", height: "90%" }} player={useVideoPlayer(capturedMedia!.uri, player => {
-                player.loop = false;
-                player.play();
-              })} allowsFullscreen allowsPictureInPicture contentFit="contain" />
-        )}
-        <View style={styles.previewButtons}>
-          <Button title="Enregistrer" onPress={handleSave} />
-          <Button title="Annuler" onPress={handleCancel} />
-        </View>
-      </View>
-    );
-  };
-
-  const renderCamera = () => {
-    return (
-      <CameraView
-        style={styles.camera}
-        ref={cameraRef}
-        mode={mode}
-        facing={facing}
-        mute={false}
-        responsiveOrientationWhenOrientationLocked
-      >
-        <View style={styles.shutterContainer}>
-          <Pressable onPress={toggleMode}>
-            {mode === "picture" ? (
-              <AntDesign name="picture" size={32} color="white" />
-            ) : (
-              <Feather name="video" size={32} color="white" />
-            )}
-          </Pressable>
-          <Pressable onPress={mode === "picture" ? takePicture : recordVideo}>
-            {({ pressed }) => (
-              <View
-                style={[
-                  styles.shutterBtn,
-                  { opacity: pressed ? 0.5 : 1 },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.shutterBtnInner,
-                    { backgroundColor: mode === "picture" ? "white" : "red" },
-                  ]}
-                />
-              </View>
-            )}
-          </Pressable>
-          <Pressable onPress={toggleFacing}>
-            <FontAwesome6 name="rotate-left" size={32} color="white" />
-          </Pressable>
-        </View>
-      </CameraView>
-    );
+  const handleAddFood = () => {
+    setModalVisible(false);
+    setScanned(false);
+    if (foodData) {
+      const food = foodData.food;
+      if (food) {
+        addFood(food);
+        Alert.alert("Succès", "Aliment ajouté !");
+        router.replace("/add");
+      }
+    }
   };
 
   return (
     <View style={styles.container}>
-      {capturedMedia ? renderPreview() : renderCamera()}
+      {!scanned && (
+        <CameraView
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        barcodeScannerSettings={{
+          barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"],
+        }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      )}
+      {foodData && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={handleCancel}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.foodLabel}>{foodData.food.label}</Text>
+              <Text>Catégorie : {foodData.food.category}</Text>
+              <Text>Marque : {foodData.food.brand || "N/A"}</Text>
+              <Text>Calories : {foodData.food.nutrients.ENERC_KCAL || "N/A"} kcal</Text>
+              <View style={styles.buttonContainer}>
+                <Button title="Annuler" onPress={handleCancel} color="red" />
+                <Button title="Ajouter" onPress={handleAddFood} color="green" />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -164,60 +98,30 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  permissionContainer: {
-    flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    alignItems: "center",
   },
-  permissionText: {
-    textAlign: "center",
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    padding: 20,
+    margin: 20,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  foodLabel: {
+    fontSize: 24,
+    fontWeight: "bold",
     marginBottom: 10,
   },
-  camera: {
-    flex: 1,
-    width: "100%",
-  },
-  shutterContainer: {
-    position: "absolute",
-    bottom: 44,
-    left: 0,
-    width: "100%",
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 30,
-  },
-  shutterBtn: {
-    backgroundColor: "transparent",
-    borderWidth: 5,
-    borderColor: "white",
-    width: 85,
-    height: 85,
-    borderRadius: 45,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shutterBtnInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 50,
-  },
-  previewContainer: {
-    flex: 1,
-    backgroundColor: "black",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  previewMedia: {
-    width: "100%",
-    height: "80%",
-  },
-  previewButtons: {
+  buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
+    marginTop: 20,
     width: "100%",
-    padding: 20,
   },
 });

@@ -40,7 +40,7 @@ const MealDetailScreen = () => {
   }
 
   const totalMealCalories = foods.reduce(
-    (total, food) => total + (food.food.nutrients?.ENERC_KCAL || 0) * food.quantity,
+    (total, food) => total + (food.nutrients?.ENERC_KCAL || 0) * food.quantity,
     0
   ).toFixed(2);
 
@@ -55,19 +55,19 @@ const MealDetailScreen = () => {
         keyExtractor={(_, index) => index.toString()}
         renderItem={({ item }) => (
           <View style={styles.foodItem}>
-            <Text style={styles.foodText}>{item.food.label}</Text>
+            <Text style={styles.foodText}>{item.label}</Text>
             <Text style={styles.foodText}>Quantité : {item.quantity}</Text>
             <Text style={styles.foodText}>
-              Calories : {item.food.nutrients?.ENERC_KCAL.toFixed(2) || 'N/A'} Kcal
+              Calories : {item.nutrients?.ENERC_KCAL.toFixed(2) || 'N/A'} Kcal
             </Text>
             <Text style={styles.foodText}>
-              Protéines : {item.food.nutrients?.PROCNT.toFixed(2) || 'N/A'} g
+              Protéines : {item.nutrients?.PROCNT.toFixed(2) || 'N/A'} g
             </Text>
             <Text style={styles.foodText}>
-              Glucides : {item.food.nutrients?.CHOCDF.toFixed(2) || 'N/A'} g
+              Glucides : {item.nutrients?.CHOCDF.toFixed(2) || 'N/A'} g
             </Text>
             <Text style={styles.foodText}>
-              Lipides : {item.food.nutrients?.FAT.toFixed(2) || 'N/A'} g
+              Lipides : {item.nutrients?.FAT.toFixed(2) || 'N/A'} g
             </Text>
           </View>
         )}
