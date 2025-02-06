@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, FlatList, StyleSheet } from 'react-native';
+import { View, Text, Button, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getDatabase } from '../../db';
+import { Ionicons } from '@expo/vector-icons';
 
 const MealDetailScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,6 +47,12 @@ const MealDetailScreen = () => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color="black" />
+      </TouchableOpacity>
       <Text style={styles.title}>Détail du repas</Text>
       <Text style={styles.subtitle}>Nom : {meal.name}</Text>
       <Text style={styles.subtitle}>Total Calories : {totalMealCalories} Kcal</Text>
@@ -85,6 +92,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#F5F5F5',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 16,
+    zIndex: 1,
   },
   loadingText: {
     fontSize: 16,
