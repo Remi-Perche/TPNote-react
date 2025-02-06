@@ -63,13 +63,13 @@ const AddMealScreen = () => {
 
   const insertMeal = async (mealName: string) => {
     const totalCalories = selectedFoods.reduce(
-      (total, food) => total + (food.nutrients?.ENERC_KCAL || 0) * food.quantity,
+      (total, food) => total + (food.food.nutrients?.ENERC_KCAL || 0) * food.quantity,
       0
     );
 
     const meal = {
       name: mealName,
-      totalCalories,
+      totalCalories: totalCalories.toFixed(2),
       foods: selectedFoods,
     };
 
@@ -79,10 +79,6 @@ const AddMealScreen = () => {
         'INSERT INTO meals (name, totalCalories, foods) VALUES (?, ?, ?);',
         [meal.name, meal.totalCalories, JSON.stringify(meal.foods)],
       );
-      const allRows = await db.getAllAsync('SELECT * FROM meals');
-      for (const row of allRows) {
-        console.log(row);
-      }
     } catch (error) {
       console.error('Erreur lors de l’obtention de la DB', error);
     }
