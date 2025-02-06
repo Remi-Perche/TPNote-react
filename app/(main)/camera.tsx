@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
-import { StyleSheet, View, Text, Button, Pressable, Modal, Alert } from "react-native";
+import { StyleSheet, View, Text, Button, Pressable, Modal, Alert, TouchableOpacity } from "react-native";
 import { Camera, CameraView, useCameraPermissions } from "expo-camera";
 import { EDA_MAN_APP_ID, EDA_MAN_APP_KEY } from '@env';
 import { router, useGlobalSearchParams } from "expo-router";
 import useSelectedFoods from "./selectedFoodContext";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function CameraScreen() {
   const [hasPermission, setHasPermission] = useState(false);
@@ -54,7 +55,7 @@ export default function CameraScreen() {
       if (food) {
         addFood(food);
         Alert.alert("Succès", "Aliment ajouté !");
-        router.replace("/add");
+        router.back();
       }
     }
   };
@@ -91,6 +92,12 @@ export default function CameraScreen() {
           </View>
         </Modal>
       )}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={50} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -100,6 +107,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  backButton: {
+    position: 'absolute',
+    bottom: 30,
   },
   modalContainer: {
     flex: 1,

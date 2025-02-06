@@ -4,6 +4,7 @@ import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { EDA_MAN_APP_ID, EDA_MAN_APP_KEY } from '@env';
 import { getDatabase } from '../../db';
 import useSelectedFoods from "./selectedFoodContext";
+import { Ionicons } from '@expo/vector-icons';
 
 const AddMealScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,10 +17,6 @@ const AddMealScreen = () => {
   // États pour le Modal de demande du nom du repas
   const [showNameModal, setShowNameModal] = useState(false);
   const [mealName, setMealName] = useState('');
-
-  useEffect(() => {
-    console.log(selectedFoods);
-  }, [selectedFoods]);
 
   const searchFood = async () => {
     Keyboard.dismiss();
@@ -35,36 +32,6 @@ const AddMealScreen = () => {
       console.error('Erreur de recherche', error);
     }
   };
-
-  // const handleFoodSelect = (food: any) => {
-  //   console.log(food.food.foodId);
-  //   const existing = selectedFoods.find(item => item.food.foodId === food.food.foodId);
-  //   if (existing) {
-  //     setSelectedFoods(
-  //       selectedFoods.map(item =>
-  //         item.food.foodId === food.food.foodId
-  //           ? { ...item, quantity: item.quantity + 1 }
-  //           : item
-  //       )
-  //     );
-  //   } else {
-  //     console.log(food);
-  //     setSelectedFoods([...selectedFoods, { ...food, quantity: 1 }]);
-  //   }
-  // };
-
-  // const handleRemoveFood = (id: string) => {
-  //   setSelectedFoods(selectedFoods.filter(item => item.food.foodId !== id));
-  // };
-
-  // const handleQuantityChange = (id: string, newQuantity: number) => {
-  //   if (newQuantity < 1) return;
-  //   setSelectedFoods(
-  //     selectedFoods.map(item =>
-  //       item.food.foodId === id ? { ...item, quantity: newQuantity } : item
-  //     )
-  //   );
-  // };
 
   const insertMeal = async (mealName: string) => {
     const totalCalories = selectedFoods.reduce(
@@ -105,6 +72,12 @@ const AddMealScreen = () => {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color="black" />
+      </TouchableOpacity>
       <Text style={styles.title}>Ajouter un repas</Text>
       <TextInput
         style={styles.input}
@@ -189,7 +162,7 @@ const AddMealScreen = () => {
           )}
         </View>
       )}
-      <Pressable style={styles.button} onPress={() => { router.replace("/camera") }}>
+      <Pressable style={styles.button} onPress={() => { router.push("/camera") }}>
         <Text style={styles.buttonText}>Ouvrir la caméra</Text>
       </Pressable>
       <TouchableOpacity style={[styles.button, styles.validateButton]} onPress={handleValidate}>
@@ -238,6 +211,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#F5F5F5',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 16,
+    zIndex: 1,
   },
   title: {
     fontSize: 24,

@@ -13,7 +13,7 @@ export default function AuthRoutesLayout() {
 
   return (
     <SelectedFoodsProvider>
-      <Stack />
+      <Stack screenOptions={{ headerShown: false }}/>
     </SelectedFoodsProvider>
   )
 }
